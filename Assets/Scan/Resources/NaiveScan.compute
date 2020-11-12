@@ -1,0 +1,81 @@
+﻿#pragma kernel Scan
+#pragma kernel ScanGroupResults
+#pragma kernel AddGroupResults
+#pragma kernel InclusiveToExclusive
+
+#define GROUP_SIZE 512
+
+int count;
+RWStructuredBuffer<int> data;
+RWStructuredBuffer<int> group_data;
+
+groupshared int gs_data[GROUP_SIZE];
+
+void ScanGroupshared(int idx) {
+    for (int i = 1; i < GROUP_SIZE; i <<= 1) {
+        int add_value = (idx - i >= 0) ? gs_data[idx - i] : 0;
+        GroupMemoryBarrierWithGroupSync();
+        gs_data[idx] += add_value;
+        GroupMemoryBarrierWithGroupSync();
+    }
+}
+
+// See: https://en.wikipedia.org/wiki/Prefix_sum
+// This implements an inclusive sum (sum[i] includes data[i]).
+[numthreads(GROUP_SIZE,1,1)]
+void Scan(uint3 id: SV_DispatchThreadID, uint3 gtid: SV_GroupThreadID) {
+    // Load to groupshared.
+    if ((int)id.x < count) {
+        gs_data[gtid.x] = data[id.x];
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    ScanGroupshared(gtid.x);
+
+    // Copy back to global.
+    if ((int)id.x < count) {
+        data[id.x] = gs_data[gtid.x];
+    }
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void ScanGroupResults(uint3 id: SV_DispatchThreadID) {
+    // Load to groupshared.
+    int offset = (int)id.x * GROUP_SIZE;
+    if (offset < count) {
+        gs_data[id.x] = (offset > 0) ? data[offset - 1] : 0;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    ScanGroupshared(id.x);
+
+    // Copy back to global.
+    if (offset < count) {
+        group_data[id.x] = gs_data[id.x];
+    }
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void AddGroupResults(uint3 id: SV_DispatchThreadID) {
+    if ((int)id.x < count) {
+        data[id.x] += group_data[id.x / GROUP_SIZE];
+    }
+}
+
+// Converts an inclusive scan to an exclusive scan.
+[numthreads(GROUP_SIZE,1,1)]
+void InclusiveToExclusive(uint3 id: SV_DispatchThreadID) {
+    int starting_offset = GROUP_SIZE * ((uint)count / GROUP_SIZE);
+    for (int i = starting_offset; i >= 0; i -= GROUP_SIZE) {
+        int offset = i + id.x;
+        int previous = 0;
+        if (offset < count) {
+            previous = offset > 0 ? data[offset - 1] : 0;
+        }
+        AllMemoryBarrierWithGroupSync();
+        if (offset < count) {
+            data[offset] = previous;
+        }
+        AllMemoryBarrierWithGroupSync();
+    }
+}
