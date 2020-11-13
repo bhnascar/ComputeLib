@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class Octree : IDisposable
@@ -56,11 +57,11 @@ public class Octree : IDisposable
         nodes.Dispose();
 	}
 
-    public void Insert(Mesh mesh) {
-        Insert(mesh.vertices);
+    public async Task Insert(Mesh mesh) {
+        await Insert(mesh.vertices);
     }
 
-    public void Insert(Vector3[] data) {
+    public async Task Insert(Vector3[] data) {
         uint gx, gy, gz;
         shader.GetKernelThreadGroupSizes(computeLeavesKernel, out gx, out gy, out gz);
         int numGroupsX = Mathf.CeilToInt((float)data.Length / gx);
@@ -101,14 +102,14 @@ public class Octree : IDisposable
                 shader.DispatchIndirect(subdivideKernel, indirectArgs.Buffer);
             }
 
-            nodeData = nodes.GetData();
+            nodeData = await nodes.GetDataAsync();
             nodeCount = (int)nodes.GetCounterValue();
         }
     }
 
     public void Draw() {
         if (nodeData != null) {
-            DrawNode(0, 0, Vector3.zero);;
+            DrawNode(0, 0, Vector3.zero);
         }
     }
 

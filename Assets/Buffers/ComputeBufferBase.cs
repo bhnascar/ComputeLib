@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public abstract class ComputeBufferBase<T> : IDisposable where T : struct
 {
@@ -89,6 +91,17 @@ public abstract class ComputeBufferBase<T> : IDisposable where T : struct
 	public T[] GetData() {
 		T[] data = new T[Count];
 		Buffer.GetData(data);
+		return data;
+	}
+
+	public async Task<T[]> GetDataAsync() {
+		var request = AsyncGPUReadback.Request(Buffer);
+		while (!request.done) {
+			await Task.Yield();
+		}
+		var nativeData = request.GetData<T>();
+		var data = new T[nativeData.Length];
+		nativeData.CopyTo(data);
 		return data;
 	}
 
