@@ -6,7 +6,7 @@ Some parallel primitives and GPU datastructures written in DirectCompute(DX11) w
 *<p align="center">A GPU sparse octree</p>*
 
 ## Currently implemented
-- Prefix scan (naive) - up to 512x512 elements
+- Prefix scan (Hillis-Steele) - up to 512x512 elements
 - Sort ([bitonic](https://en.wikipedia.org/wiki/Bitonic_sorter))
 - Compaction (via scan)
 - Sparse octree (topology construction approach outlined in [this paper](https://research.nvidia.com/publication/octree-based-sparse-voxelization-using-gpu-hardware-rasterizer))
