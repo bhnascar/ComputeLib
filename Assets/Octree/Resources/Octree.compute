@@ -1,0 +1,63 @@
+﻿#pragma kernel ComputeLeaves
+#pragma kernel MarkUniqueLeaves
+#pragma kernel MarkForSubdivide
+
+#include "Morton.cginc"
+
+#define INT_MAX 0x7FFFFFFF
+#define GROUP_SIZE 512
+
+// Octree node type.
+struct Node {
+    int has_children;
+    int children[8];
+};
+
+// Octree parameters.
+float3 size;
+float3 min_corner;
+int max_depth;
+
+int point_count;
+StructuredBuffer<float3> points;
+
+int leaf_count;
+RWStructuredBuffer<int> leaves;
+RWStructuredBuffer<Node> nodes;
+
+RWStructuredBuffer<int> unique;
+
+bool in_bounds(int3 coords) {
+    int upper_bound = 1 << max_depth;
+    return all(coords >= 0) && all(coords < upper_bound);
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void ComputeLeaves(uint3 id: SV_DispatchThreadID) {
+    if ((int)id.x < point_count) {
+        float3 leaf_size = size / (1 << max_depth);
+        int3 leaf_coords = (points[id.x] - min_corner) / leaf_size;
+        leaves[id.x] = in_bounds(leaf_coords) ? morton_encode(leaf_coords) : INT_MAX;
+    }
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void MarkUniqueLeaves(uint3 id: SV_DispatchThreadID) {
+    if ((int)id.x < point_count) {
+        int val = leaves[id.x];
+        int is_unique = (id.x == 0 || (val != leaves[id.x - 1] && (uint)val != INT_MAX));
+        unique[id.x] = is_unique;
+
+        // TODO: There are better ways to track the leaf count.
+        if (is_unique) {
+            unique.IncrementCounter();
+        }
+    }
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void MarkForSubdivide(uint3 id: SV_DispatchThreadID) {
+    if ((int)id.x < leaf_count) {
+        int leaf = leaves[id.x];
+    }
+}
