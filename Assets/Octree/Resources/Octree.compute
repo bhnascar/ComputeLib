@@ -17,11 +17,6 @@ RWStructuredBuffer<int> unique;
 
 int current_level;
 
-bool in_bounds(int3 coords) {
-    int upper_bound = 1 << max_depth;
-    return all(coords >= 0) && all(coords < upper_bound);
-}
-
 [numthreads(GROUP_SIZE,1,1)]
 void ComputeLeaves(uint3 id: SV_DispatchThreadID) {
     if ((int)id.x < point_count) {

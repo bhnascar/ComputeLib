@@ -13,8 +13,8 @@ public class Octree : IDisposable
 
     private int maxDepth;
     private Bounds bounds;
-    private CounterBuffer<Node> nodes;
 
+    private CounterBuffer<Node> nodes;
     private Node[] nodeData;
     private int nodeCount;
 
@@ -23,8 +23,8 @@ public class Octree : IDisposable
     private static int markUniqueLeavesKernel;
     private static int subdivideKernel;
 
-    private BitonicSort sorter;
-    private ScanCompact compactor;
+    private BitonicSort sorter = new BitonicSort();
+    private ScanCompact compactor = new ScanCompact();
 
     static Octree() {
         shader = Resources.Load<ComputeShader>("Octree");
@@ -39,15 +39,11 @@ public class Octree : IDisposable
             int res = 1 << i;
             maxNodes += res * res * res;
         }
-
         nodes = new CounterBuffer<Node>(maxNodes, 1);
         nodes.SetData(new Node[maxNodes]);
 
         this.bounds = bounds;
         this.maxDepth = maxDepth;
-
-        sorter = new BitonicSort();
-        compactor = new ScanCompact();
     }
 
     public void Dispose() {
@@ -58,7 +54,7 @@ public class Octree : IDisposable
         Insert(mesh.vertices);
     }
 
-    public unsafe void Insert(Vector3[] data) {
+    public void Insert(Vector3[] data) {
         uint gx, gy, gz;
         shader.GetKernelThreadGroupSizes(computeLeavesKernel, out gx, out gy, out gz);
         int numGroupsX = Mathf.CeilToInt((float)data.Length / gx);
@@ -102,10 +98,9 @@ public class Octree : IDisposable
     }
 
     public void Draw() {
-        if (nodeData == null) {
-            return;
+        if (nodeData != null) {
+            DrawNode(0, 0, Vector3.zero);;
         }
-        DrawNode(0, 0, Vector3.zero);
     }
 
     private unsafe void DrawNode(int idx, int depth, Vector3 coords) {

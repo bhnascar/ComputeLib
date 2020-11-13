@@ -10,12 +10,8 @@ float3 size;
 float3 min_corner;
 int max_depth;
 
-void set_child(int node, int child, int3 child_coords) {
-    int code = morton_encode(child_coords);
-    nodes[node].children[code] = child;
-}
-
-// Returns true if this thread sets the flag.
+// Flag this node as having a particular child. Returns true if 
+// this thread sets the flag.
 bool activate_child(int node, int3 child_coords) {
     int code = morton_encode(child_coords);
     int mask = 1 << code;
@@ -24,16 +20,28 @@ bool activate_child(int node, int3 child_coords) {
     return !(old_val & mask);
 }
 
+// Returns the coords of the child of this node <x,y,z> in [0,1],
+// on the path to the given leaf.
 int3 get_child_coords(int3 node_coords, int node_depth, int3 leaf_coords) {
     int3 level_coords = leaf_coords >> (max_depth - (node_depth + 1));
     int3 child_coords = level_coords - (node_coords << 1);
     return child_coords;
 }
 
+void set_child(int node, int child, int3 child_coords) {
+    int code = morton_encode(child_coords);
+    nodes[node].children[code] = child;
+}
+
 int get_child(int node, int3 child_coords) {
     int code = morton_encode(child_coords);
     int mask = 1 << code;
     return (nodes[node].child_flags & mask) ? nodes[node].children[code] : -1;
+}
+
+bool in_bounds(int3 coords) {
+    int upper_bound = 1 << max_depth;
+    return all(coords >= 0) && all(coords < upper_bound);
 }
 
 // Traverses towards the leaf node identified by leaf_coords,
