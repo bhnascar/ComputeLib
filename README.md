@@ -9,7 +9,7 @@ Some parallel primitives and GPU datastructures written in DirectCompute(DX11) w
 - Prefix scan (naive) - up to 512x512 elements
 - Sort ([bitonic](https://en.wikipedia.org/wiki/Bitonic_sorter))
 - Compaction (via scan)
-- Octree (topology construction approach outlined in [this paper](https://research.nvidia.com/publication/octree-based-sparse-voxelization-using-gpu-hardware-rasterizer))
+- Sparse octree (topology construction approach outlined in [this paper](https://research.nvidia.com/publication/octree-based-sparse-voxelization-using-gpu-hardware-rasterizer))
 
 ## FAQ
 Is it as micro-optimized as [ModernGPU](https://moderngpu.github.io/intro.html) algorithms? No.  
