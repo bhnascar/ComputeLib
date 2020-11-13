@@ -1,31 +1,21 @@
 ﻿#pragma kernel ComputeLeaves
 #pragma kernel MarkUniqueLeaves
-#pragma kernel MarkForSubdivide
+#pragma kernel Subdivide
 
 #include "Morton.cginc"
+#include "OctreeCommon.cginc"
 
 #define INT_MAX 0x7FFFFFFF
 #define GROUP_SIZE 512
-
-// Octree node type.
-struct Node {
-    int has_children;
-    int children[8];
-};
-
-// Octree parameters.
-float3 size;
-float3 min_corner;
-int max_depth;
 
 int point_count;
 StructuredBuffer<float3> points;
 
 int leaf_count;
 RWStructuredBuffer<int> leaves;
-RWStructuredBuffer<Node> nodes;
-
 RWStructuredBuffer<int> unique;
+
+int current_level;
 
 bool in_bounds(int3 coords) {
     int upper_bound = 1 << max_depth;
@@ -56,8 +46,19 @@ void MarkUniqueLeaves(uint3 id: SV_DispatchThreadID) {
 }
 
 [numthreads(GROUP_SIZE,1,1)]
-void MarkForSubdivide(uint3 id: SV_DispatchThreadID) {
+void Subdivide(uint3 id: SV_DispatchThreadID) {
     if ((int)id.x < leaf_count) {
         int leaf = leaves[id.x];
+        int3 leaf_coords = morton_decode(leaf);
+
+        int node;
+        int3 node_coords;
+        traverse(leaf_coords, current_level, node, node_coords);
+
+        int3 child_coords = get_child_coords(node_coords, current_level, leaf_coords);
+        if (activate_child(node, child_coords)) {
+            int child = nodes.IncrementCounter();
+            set_child(node, child, child_coords);
+        }
     }
 }

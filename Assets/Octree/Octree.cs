@@ -5,19 +5,23 @@ public class Octree : IDisposable
 {
     // TODO: Pad to align to float4?
     internal unsafe struct Node {
-        public int has_children;
+        #pragma warning disable 0649
+        public int child_flags;
         public fixed int children[8];
+        #pragma warning restore 0649
     }
 
     private int maxDepth;
     private Bounds bounds;
-    private StructuredBuffer<Node> nodes;
+    private CounterBuffer<Node> nodes;
 
-    private int[] leafData;
+    private Node[] nodeData;
+    private int nodeCount;
 
     private static ComputeShader shader;
     private static int computeLeavesKernel;
     private static int markUniqueLeavesKernel;
+    private static int subdivideKernel;
 
     private BitonicSort sorter;
     private ScanCompact compactor;
@@ -26,15 +30,17 @@ public class Octree : IDisposable
         shader = Resources.Load<ComputeShader>("Octree");
         computeLeavesKernel = shader.FindKernel("ComputeLeaves");
         markUniqueLeavesKernel = shader.FindKernel("MarkUniqueLeaves");
+        subdivideKernel = shader.FindKernel("Subdivide");
     }
 
     public Octree(Bounds bounds, int maxDepth = 5) {
         int maxNodes = 0;
         for (int i = 1; i <= maxDepth; i++) {
-            maxNodes += i * i * i;
+            int res = 1 << i;
+            maxNodes += res * res * res;
         }
 
-        nodes = new StructuredBuffer<Node>(maxNodes);
+        nodes = new CounterBuffer<Node>(maxNodes, 1);
         nodes.SetData(new Node[maxNodes]);
 
         this.bounds = bounds;
@@ -52,7 +58,7 @@ public class Octree : IDisposable
         Insert(mesh.vertices);
     }
 
-    public void Insert(Vector3[] data) {
+    public unsafe void Insert(Vector3[] data) {
         uint gx, gy, gz;
         shader.GetKernelThreadGroupSizes(computeLeavesKernel, out gx, out gy, out gz);
         int numGroupsX = Mathf.CeilToInt((float)data.Length / gx);
@@ -80,28 +86,40 @@ public class Octree : IDisposable
             compactor.Compact(leaves, keys, data.Length);
 
             int leafCount = (int)keys.GetCounterValue();
-            leafData = leaves.GetData();
+            int leafGroupsX = Mathf.CeilToInt((float)leafCount / gx);
 
-            // TODO:
-            /*
             for (int i = 0; i < maxDepth; i++) {
-                // Mark and subdivide.
+                shader.SetInt("leaf_count", leafCount);
+                shader.SetInt("current_level", i);
+                shader.SetBuffer(subdivideKernel, "leaves", leaves.Buffer);
+                shader.SetBuffer(subdivideKernel, "nodes", nodes.Buffer);
+                shader.Dispatch(subdivideKernel, leafGroupsX, 1, 1);
             }
-            */
+
+            nodeData = nodes.GetData();
+            nodeCount = (int)nodes.GetCounterValue();
         }
     }
 
     public void Draw() {
-        if (leafData == null) {
+        if (nodeData == null) {
             return;
         }
-        Vector3 leafSize = bounds.size / (1 << maxDepth);
-        for (int i = 0; i < leafData.Length; i++) {
-            int leaf = leafData[i];
-            if (leaf != 0) {
-                var coords = Morton.Decode(leaf);
-                var center = bounds.min + Vector3.Scale(coords + 0.5f * Vector3.one, leafSize);
-                Gizmos.DrawWireCube(center, leafSize);
+        DrawNode(0, 0, Vector3.zero);
+    }
+
+    private unsafe void DrawNode(int idx, int depth, Vector3 coords) {
+        Node node = nodeData[idx];
+        var nodeSize = bounds.size / (1 << depth);
+        var center = bounds.min + Vector3.Scale(coords + 0.5f * Vector3.one, nodeSize);
+
+        Gizmos.DrawWireCube(center, nodeSize);
+
+        for (int i = 0; i < 8; i++) {
+            int child = node.children[i];
+            if (child > 0 && child < nodeData.Length) {
+                Vector3 child_coords = Morton.Decode(i);
+                DrawNode(child, depth + 1, 2f * coords + child_coords);
             }
         }
     }
