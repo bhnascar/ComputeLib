@@ -12,6 +12,10 @@ public class AppendBuffer<T> : ComputeBufferBase<T> where T : struct
 		ComputeBuffer.CopyCount(Buffer, other.Buffer, itemOffset * other.Buffer.stride);
 	}
 
+	public void CopyCount(ArgsBuffer other, int itemOffset = 0) {
+		ComputeBuffer.CopyCount(Buffer, other.Buffer, itemOffset * other.Buffer.stride);
+	}
+
 	public void SetCounterValue(uint counterValue) {
 		Buffer.SetCounterValue(counterValue);
 	}

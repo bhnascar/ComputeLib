@@ -1,5 +1,6 @@
 ﻿#pragma kernel ComputeLeaves
 #pragma kernel MarkUniqueLeaves
+#pragma kernel ComputeArgs
 #pragma kernel Subdivide
 
 #include "Morton.cginc"
@@ -8,10 +9,12 @@
 #define INT_MAX 0x7FFFFFFF
 #define GROUP_SIZE 512
 
+RWBuffer<uint> args;
+
 int point_count;
 StructuredBuffer<float3> points;
 
-int leaf_count;
+Buffer<uint> leaf_count;
 RWStructuredBuffer<int> leaves;
 RWStructuredBuffer<int> unique;
 
@@ -40,9 +43,16 @@ void MarkUniqueLeaves(uint3 id: SV_DispatchThreadID) {
     }
 }
 
+[numthreads(1,1,1)]
+void ComputeArgs(uint3 id: SV_DispatchThreadID) {
+    args[0] = ceil((float)args[0] / GROUP_SIZE);
+    args[1] = 1;
+    args[2] = 1;
+}
+
 [numthreads(GROUP_SIZE,1,1)]
 void Subdivide(uint3 id: SV_DispatchThreadID) {
-    if ((int)id.x < leaf_count) {
+    if (id.x < leaf_count[0]) {
         int leaf = leaves[id.x];
         int3 leaf_coords = morton_decode(leaf);
 

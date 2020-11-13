@@ -14,6 +14,7 @@ public class Octree : IDisposable
     private int maxDepth;
     private Bounds bounds;
 
+    private ArgsBuffer indirectArgs;
     private CounterBuffer<Node> nodes;
     private Node[] nodeData;
     private int nodeCount;
@@ -21,6 +22,7 @@ public class Octree : IDisposable
     private static ComputeShader shader;
     private static int computeLeavesKernel;
     private static int markUniqueLeavesKernel;
+    private static int computeArgsKernel;
     private static int subdivideKernel;
 
     private BitonicSort sorter = new BitonicSort();
@@ -30,10 +32,13 @@ public class Octree : IDisposable
         shader = Resources.Load<ComputeShader>("Octree");
         computeLeavesKernel = shader.FindKernel("ComputeLeaves");
         markUniqueLeavesKernel = shader.FindKernel("MarkUniqueLeaves");
+        computeArgsKernel = shader.FindKernel("ComputeArgs");
         subdivideKernel = shader.FindKernel("Subdivide");
     }
 
     public Octree(Bounds bounds, int maxDepth = 5) {
+        indirectArgs = new ArgsBuffer();
+
         int maxNodes = 0;
         for (int i = 1; i <= maxDepth; i++) {
             int res = 1 << i;
@@ -47,6 +52,7 @@ public class Octree : IDisposable
     }
 
     public void Dispose() {
+        indirectArgs.Dispose();
         nodes.Dispose();
 	}
 
@@ -60,6 +66,7 @@ public class Octree : IDisposable
         int numGroupsX = Mathf.CeilToInt((float)data.Length / gx);
 
         using (var leaves = new StructuredBuffer<int>(data.Length))
+        using (var leafCount = new RawBuffer<uint>(1))
         using (var keys = new CounterBuffer<int>(data.Length))
         using (var points = new StructuredBuffer<Vector3>(data.Length)) {
             points.SetData(data);
@@ -81,15 +88,17 @@ public class Octree : IDisposable
 
             compactor.Compact(leaves, keys, data.Length);
 
-            int leafCount = (int)keys.GetCounterValue();
-            int leafGroupsX = Mathf.CeilToInt((float)leafCount / gx);
+            keys.CopyCount(indirectArgs);
+            shader.SetBuffer(computeArgsKernel, "args", indirectArgs.Buffer);
+            shader.Dispatch(computeArgsKernel, 1, 1, 1);
 
+            keys.CopyCount(leafCount);
+            shader.SetBuffer(subdivideKernel, "leaf_count", leafCount.Buffer);
+            shader.SetBuffer(subdivideKernel, "leaves", leaves.Buffer);
+            shader.SetBuffer(subdivideKernel, "nodes", nodes.Buffer);
             for (int i = 0; i < maxDepth; i++) {
-                shader.SetInt("leaf_count", leafCount);
                 shader.SetInt("current_level", i);
-                shader.SetBuffer(subdivideKernel, "leaves", leaves.Buffer);
-                shader.SetBuffer(subdivideKernel, "nodes", nodes.Buffer);
-                shader.Dispatch(subdivideKernel, leafGroupsX, 1, 1);
+                shader.DispatchIndirect(subdivideKernel, indirectArgs.Buffer);
             }
 
             nodeData = nodes.GetData();
