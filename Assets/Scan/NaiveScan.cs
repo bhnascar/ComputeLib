@@ -9,6 +9,8 @@ public class NaiveScan : IBufferScan<int>
     private static int addGroupResultsKernel;
     private static int inclusiveToExclusiveKernel;
 
+    private const int LANE_STRIDE = 4;
+
     static NaiveScan() {
         shader = Resources.Load<ComputeShader>("NaiveScan");
         scanKernel = shader.FindKernel("Scan");
@@ -23,12 +25,12 @@ public class NaiveScan : IBufferScan<int>
         int numGroupsX = Mathf.CeilToInt((float)count / gx);
 
         shader.SetInt("count", count);
-        shader.SetInt("lane_stride", 4);
+        shader.SetInt("lane_stride", LANE_STRIDE);
         shader.SetBuffer(scanKernel, "data", buffer.Buffer);
         shader.Dispatch(scanKernel, numGroupsX, 1, 1);
 
         // If we can't complete the scan within a single group.
-        if (count > gx) {
+        if (count > LANE_STRIDE * gx) {
             using (var groupData = new StructuredBuffer<int>((int)gx)) {
                 shader.SetBuffer(scanGroupResultsKernel, "data", buffer.Buffer);
                 shader.SetBuffer(scanGroupResultsKernel, "group_data", groupData.Buffer);
