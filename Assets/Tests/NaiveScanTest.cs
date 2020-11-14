@@ -16,6 +16,7 @@ namespace Tests
         [TestCase(4096)]
         [TestCase(16384)]
         [TestCase(65536)]
+        [TestCase(1048576)]
         public void TestPow2(int count)
         {
             using (StructuredBuffer<int> buffer = new StructuredBuffer<int>(count)) {

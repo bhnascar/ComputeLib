@@ -23,6 +23,7 @@ public class NaiveScan : IBufferScan<int>
         int numGroupsX = Mathf.CeilToInt((float)count / gx);
 
         shader.SetInt("count", count);
+        shader.SetInt("lane_stride", 4);
         shader.SetBuffer(scanKernel, "data", buffer.Buffer);
         shader.Dispatch(scanKernel, numGroupsX, 1, 1);
 
