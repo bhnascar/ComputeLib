@@ -1,4 +1,6 @@
-﻿int interleave(int x) {
+﻿#ifndef MORTON_ENCODING_COMMON
+
+int interleave(int x) {
     x = (x | (x << 16)) & 0x030000FF;
     x = (x | (x <<  8)) & 0x0300F00F;
     x = (x | (x <<  4)) & 0x030C30C3;
@@ -29,3 +31,5 @@ int3 morton_decode(int x) {
         deinterleave(x >> 2)
     );
 }
+
+#endif

@@ -1,4 +1,6 @@
-﻿// Octree node type.
+﻿#ifndef OCTREE_COMMON
+
+// Octree node type.
 struct Node {
     int child_flags;
     int children[8];
@@ -60,3 +62,5 @@ void traverse(int3 leaf_coords, int depth, out int node, out int3 node_coords) {
         node_depth++;
     }
 }
+
+#endif
