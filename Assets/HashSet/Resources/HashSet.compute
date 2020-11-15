@@ -1,0 +1,35 @@
+﻿#pragma kernel Insert
+#pragma kernel Contains
+#pragma kernel Remove
+
+#include "HashSetCommon.cginc"
+
+#define GROUP_SIZE 512
+
+int count;
+Buffer<int> input;
+RWBuffer<int> results;
+
+[numthreads(GROUP_SIZE,1,1)]
+void Insert(uint3 id: SV_DispatchThreadID)
+{
+    if ((int)id.x < count) {
+        results[id.x] = insert(input[id.x]);// ? 1 : 0;
+    }
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void Contains(uint3 id: SV_DispatchThreadID)
+{
+    if ((int)id.x < count) {
+        results[id.x] = contains(input[id.x]) ? 1: 0;
+    }
+}
+
+[numthreads(GROUP_SIZE,1,1)]
+void Remove(uint3 id: SV_DispatchThreadID)
+{
+    if ((int)id.x < count) {
+        results[id.x] = remove(input[id.x]) ? 1 : 0;
+    }
+}
