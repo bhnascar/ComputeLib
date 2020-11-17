@@ -9,10 +9,10 @@ public class OctreeLoader : MonoBehaviour
 
     private Octree octree;
 
-    void Start() {
+    async void Start() {
         var mesh = GetComponent<MeshFilter>().mesh;
         octree = new Octree(mesh.bounds, maxDepth);
-        octree.Insert(mesh);
+        await octree.Insert(mesh);
     }
 
     void OnDestroy() {
