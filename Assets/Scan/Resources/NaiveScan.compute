@@ -17,7 +17,7 @@ int ScanLane(int idx, inout int lane_results[MAX_LANE_STRIDE]) {
     int sum = 0;
     int offset = idx * lane_stride;
     for (int i = 0; i < lane_stride; i++) {
-        sum += data[offset + i];
+        sum += (offset + i < count) ? data[offset + i] : 0;
         lane_results[i] = sum;
     }
     return sum;
@@ -34,8 +34,11 @@ void ScanGroupshared(int idx) {
 
 void WriteLaneResults(int idx, int g_idx, in int lane_results[MAX_LANE_STRIDE]) {
     int offset = idx * lane_stride;
+    int gs_sum = (g_idx > 0) ? gs_data[g_idx - 1] : 0;
     for (int i = 0; i < lane_stride; i++) {
-        data[offset + i] = lane_results[i] + ((g_idx > 0) ? gs_data[g_idx - 1] : 0);
+        if (offset + i < count) {
+            data[offset + i] = lane_results[i] + gs_sum;
+        }
     }
 }
 
@@ -44,19 +47,14 @@ void WriteLaneResults(int idx, int g_idx, in int lane_results[MAX_LANE_STRIDE]) 
 [numthreads(GROUP_SIZE,1,1)]
 void Scan(uint3 id: SV_DispatchThreadID, uint3 gtid: SV_GroupThreadID) {
     // Load to groupshared.
-    int lane_offset = (int)id.x * lane_stride;
     int lane_results[MAX_LANE_STRIDE];
-    if (lane_offset < count) {
-        gs_data[gtid.x] = ScanLane(id.x, lane_results);
-    }
+    gs_data[gtid.x] = ScanLane(id.x, lane_results);
     GroupMemoryBarrierWithGroupSync();
 
     ScanGroupshared(gtid.x);
 
     // Copy back to global.
-    if (lane_offset < count) {
-        WriteLaneResults(id.x, gtid.x, lane_results);
-    }
+    WriteLaneResults(id.x, gtid.x, lane_results);
 }
 
 [numthreads(GROUP_SIZE,1,1)]
