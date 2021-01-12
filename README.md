@@ -11,6 +11,7 @@ Some parallel primitives and GPU datastructures written in DirectCompute(DX11) w
 - Compaction (via scan)
 - Hash table ([linear probing](https://en.wikipedia.org/wiki/Linear_probing))
 - Sparse octree (topology construction approach from [this paper](https://research.nvidia.com/publication/octree-based-sparse-voxelization-using-gpu-hardware-rasterizer))
+- Solid voxelizer for closed meshes (rasterization-based approach from [this paper](https://hal.inria.fr/inria-00345291))
 
 ## FAQ
 Is it as micro-optimized as [ModernGPU](https://moderngpu.github.io/intro.html) algorithms? No.  
