@@ -56,9 +56,11 @@
             // (x:[-1,1], y:[-1,1], z:[1,0]).
             int4 frag(v2f i): SV_Target {
                 float3 clip_coords = mul(UNITY_MATRIX_P, float4(i.viewPos, 1.0)).xyz;
+                float3 voxel_size = 2.0 / grid_dimension;
                 clip_coords.z = -2.0f * clip_coords.z + 1.0f; // Map z to [-1,1] range.
-                int3 grid_coords = (clip_coords + 1.0f) / (2.0 / grid_dimension);
-                int4 encoded = to_rgba(grid_coords.z);
+                clip_coords.z += 0.5f * voxel_size; // Add half voxel.
+                int3 grid_coords = (clip_coords + 1.0f) / voxel_size;
+                int4 encoded = to_rgba(grid_coords.z - 1);
                 return encoded;
                 // return (clip_coords.z < 0) ? asint(float4(1, 0, 0, 1)) : asint(float4(0, 1, 0, 1));
             }

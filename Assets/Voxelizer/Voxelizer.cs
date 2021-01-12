@@ -15,13 +15,13 @@ public class Voxelizer
   private Material material;
   private List<Vector3> particles;
 
-  public Voxelizer(float particleDiameter, bool writeDebugTexture = true) {
+  public Voxelizer(float particleDiameter, bool writeDebugTexture = false) {
     this.particleDiameter = particleDiameter;
     this.writeDebugTexture = writeDebugTexture;
     this.material = Resources.Load<Material>("VoxelizerMaterial");
   }
 
-  public void Build(Mesh mesh, Camera camera) {
+  public void Build(Mesh mesh) {
     CommandBuffer buffer = new CommandBuffer();
     buffer.name = "Voxelizer";
 
@@ -50,17 +50,12 @@ public class Voxelizer
     // Position camera to look at mesh.
     Vector3 from = new Vector3(gridBounds.center.x, gridBounds.center.y, gridBounds.min.z - 1);
     Vector3 to = gridBounds.center;
-    // Matrix4x4 viewMatrix = Matrix4x4.LookAt(from, to, Vector3.up);
-    // camera.worldToCameraMatrix = viewMatrix;
-    camera.transform.position = from;
-    camera.transform.LookAt(to);
+    Matrix4x4 viewMatrix = Matrix4x4.LookAt(from, to, Vector3.up).inverse;
 
     // Build orthographic projection matrix with the viewing volume being
     // the mesh bounds (in camera space).
-    // Vector3 minCorner = viewMatrix * gridBounds.min;
-    // Vector3 maxCorner = viewmatrix * gridBounds.max;
-    Vector3 minCorner = camera.worldToCameraMatrix.MultiplyPoint(gridBounds.min);
-    Vector3 maxCorner = camera.worldToCameraMatrix.MultiplyPoint(gridBounds.max);
+    Vector3 minCorner = viewMatrix.MultiplyPoint(gridBounds.min);
+    Vector3 maxCorner = viewMatrix.MultiplyPoint(gridBounds.max);
     float left = minCorner.x;
     float right = maxCorner.x;
     float bottom = minCorner.y;
@@ -71,18 +66,17 @@ public class Voxelizer
     projectionMatrix.SetColumn(2, projectionMatrix.GetColumn(2) * -1);
     Debug.Log(string.Format("Projected min {0} to {1}", minCorner, projectionMatrix.MultiplyPoint(minCorner)));
     Debug.Log(string.Format("Projected max {0} to {1}", maxCorner, projectionMatrix.MultiplyPoint(maxCorner)));
-    camera.projectionMatrix = projectionMatrix;
 
     // Compute interior voxels in the fragment shader. Takes advantage of the rasterization 
     // pipeline to fill voxels that are wholly in triangle interiors.
     buffer.SetGlobalInt("grid_dimension", gridSize);
-    buffer.SetViewProjectionMatrices(camera.worldToCameraMatrix, camera.projectionMatrix);
+    buffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
     buffer.DrawMesh(mesh, Matrix4x4.identity, this.material);
     Graphics.ExecuteCommandBuffer(buffer);
 
-    // if (writeDebugTexture) {
-    //   WriteDebugTexture(grid);
-    // }
+    if (writeDebugTexture) {
+      WriteDebugTexture(grid);
+    }
 
     particles = ToParticles(grid, gridBounds);
 
@@ -124,11 +118,7 @@ public class Voxelizer
           float component = pixel[z / 32];
           int component_as_int = *((int*)&component); // Requires unsafe qualifier
           if ((component_as_int & mask) != 0) {
-            Vector3 voxelCenterOffset = new Vector3(
-              0.5f * particleDiameter,
-              0.5f * particleDiameter,
-              0 // Z-sampling in fragment shader is shifted by +0.5f
-            );
+            Vector3 voxelCenterOffset = 0.5f * particleDiameter * Vector3.one;
             particles.Add(gridBounds.min + particleDiameter * new Vector3(x, y, z) + voxelCenterOffset);
           }
         }

@@ -389,4 +389,3 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   particleDiameter: 0.1
-  helperCamera: {fileID: 1432380068}
