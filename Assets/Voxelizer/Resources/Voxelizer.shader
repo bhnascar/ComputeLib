@@ -2,7 +2,6 @@
 {
     Properties
     {
-        grid_dimensions ("Grid dimensions", Vector) = (1, 1, 1, 0)
     }
     SubShader
     {
