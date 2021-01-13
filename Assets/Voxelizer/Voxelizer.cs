@@ -21,7 +21,7 @@ public class Voxelizer
     this.material = Resources.Load<Material>("VoxelizerMaterial");
   }
 
-  public void Build(Mesh mesh) {
+  public void Build(Mesh mesh, bool conservative = false) {
     CommandBuffer buffer = new CommandBuffer();
     buffer.name = "Voxelizer";
 
@@ -71,7 +71,11 @@ public class Voxelizer
     // pipeline to fill voxels that are wholly in triangle interiors.
     buffer.SetGlobalInt("grid_dimension", gridSize);
     buffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
-    buffer.DrawMesh(mesh, Matrix4x4.identity, this.material);
+    buffer.DrawMesh(mesh, Matrix4x4.identity, this.material, 0, 0);
+    if (conservative) {
+      // Add surface voxels on top of interior voxels.
+      buffer.DrawMesh(mesh, Matrix4x4.identity, this.material, 0, 1);
+    }
     Graphics.ExecuteCommandBuffer(buffer);
 
     if (writeDebugTexture) {

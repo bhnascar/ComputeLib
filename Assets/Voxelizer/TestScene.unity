@@ -389,3 +389,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   particleDiameter: 0.1
+  conservative: 1
